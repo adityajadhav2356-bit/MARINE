@@ -1539,3 +1539,565 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   TOP-RIGHT STAKEHOLDER PROFILE AREA & FAST SWITCHER DROPDOWN
+   ========================================================================== */
+.top-profile-container {
+  position: relative;
+  margin-left: 12px;
+}
+
+.top-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 10px;
+  background: rgba(18, 27, 34, 0.95);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-mechanical);
+  text-align: left;
+  outline: none;
+}
+
+.top-profile-badge:hover {
+  background: rgba(201, 166, 107, 0.12);
+  border-color: var(--phosphor-amber);
+  box-shadow: 0 0 10px rgba(255, 180, 84, 0.2);
+}
+
+.profile-avatar {
+  font-size: 1.15rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(10, 16, 20, 0.7);
+  border: 1px solid var(--chart-line);
+  border-radius: 50%;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.profile-name {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--parchment-bright);
+}
+
+.profile-role {
+  font-family: var(--font-data);
+  font-size: 0.65rem;
+  color: var(--phosphor-amber);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-status {
+  font-family: var(--font-data);
+  font-size: 0.58rem;
+  color: var(--phosphor-green);
+  letter-spacing: 0.02em;
+}
+
+.profile-chevron {
+  font-size: 0.60rem;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  margin-left: 2px;
+}
+
+.profile-dropdown-menu.open + .top-profile-badge .profile-chevron,
+.top-profile-container:has(.profile-dropdown-menu.open) .profile-chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.profile-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 310px;
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px var(--brass-glow);
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  backdrop-filter: blur(8px);
+  animation: dropdownFadeIn 0.2s var(--ease-mechanical);
+}
+
+.profile-dropdown-menu.open {
+  display: flex;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--chart-line);
+  background: rgba(10, 16, 20, 0.6);
+  letter-spacing: 0.08em;
+}
+
+.dropdown-roles-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.dropdown-role-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(36, 51, 59, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dropdown-role-item:hover {
+  background: rgba(201, 166, 107, 0.14);
+}
+
+.dropdown-role-item.active {
+  background: rgba(107, 203, 119, 0.12);
+  border-left: 3px solid var(--phosphor-green);
+}
+
+.role-item-icon {
+  font-size: 1.1rem;
+}
+
+.role-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.role-item-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--parchment-bright);
+}
+
+.role-item-title {
+  font-size: 0.65rem;
+}
+
+.role-item-check {
+  font-family: var(--font-data);
+  font-size: 0.60rem;
+  font-weight: 700;
+  color: var(--phosphor-green);
+}
+
+.dropdown-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--chart-line);
+  background: rgba(10, 16, 20, 0.8);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdown-action-link, .dropdown-action-btn {
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  color: var(--parchment);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  transition: all 0.15s ease;
+}
+
+.dropdown-action-link:hover {
+  color: var(--phosphor-amber);
+  background: rgba(255, 180, 84, 0.1);
+}
+
+.dropdown-action-btn:hover {
+  color: var(--radar-red);
+  background: rgba(255, 92, 92, 0.1);
+}
+
+/* ==========================================================================
+   DEMO LOGIN VIEW (/#/login)
+   ========================================================================== */
+.login-view-container {
+  min-height: 100%;
+  padding: 24px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  overflow-y: auto;
+}
+
+.login-backdrop-glow {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(201, 166, 107, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-header-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 1;
+}
+
+.login-main-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+  align-items: start;
+  z-index: 1;
+}
+
+@media (max-width: 1080px) {
+  .login-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Login Terminal Panel */
+.login-form-panel {
+  background: var(--bg-panel);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+}
+
+.login-form-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--brass);
+  letter-spacing: 0.06em;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 0.88rem;
+  pointer-events: none;
+  color: var(--muted);
+}
+
+.tactical-input {
+  width: 100%;
+  padding: 10px 12px 10px 34px;
+  background: #080D10;
+  border: 1px solid var(--chart-line);
+  border-radius: var(--radius);
+  color: var(--parchment-bright);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.tactical-input:focus {
+  border-color: var(--phosphor-amber);
+  box-shadow: 0 0 10px var(--phosphor-amber-glow);
+  background: #0D151B;
+}
+
+.tactical-input.input-populating {
+  border-color: var(--phosphor-green);
+  box-shadow: 0 0 12px var(--phosphor-green-glow);
+  background: rgba(107, 203, 119, 0.08);
+}
+
+.quick-judge-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 18px 0 12px;
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+.quick-judge-divider::before,
+.quick-judge-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--chart-line);
+}
+
+.quick-judge-divider span {
+  padding: 0 10px;
+}
+
+.quick-judge-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demo-auth-disclaimer {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(10, 16, 20, 0.8);
+  border: 1px solid var(--chart-line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius);
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Demo Role Cards Grid */
+.demo-stakeholders-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--chart-line);
+}
+
+.demo-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.demo-role-card {
+  background: rgba(18, 27, 34, 0.85);
+  border: 1px solid var(--chart-line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.22s var(--ease-mechanical);
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-role-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brass);
+  background: rgba(24, 35, 44, 0.95);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 10px var(--brass-glow);
+}
+
+.demo-role-card.active-role {
+  border-color: var(--phosphor-green);
+  background: rgba(18, 32, 28, 0.95);
+  box-shadow: 0 0 14px var(--phosphor-green-glow);
+}
+
+.role-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.role-icon-wrapper {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--brass);
+  background: rgba(10, 16, 20, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.role-info {
+  flex: 1;
+}
+
+.role-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--parchment-bright);
+}
+
+.role-title {
+  font-family: var(--font-data);
+  font-size: 0.70rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.role-domain {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.role-number-badge {
+  font-size: 0.68rem;
+  color: var(--muted-dark);
+  font-weight: 700;
+}
+
+/* Secondary Credentials Box */
+.role-cred-box {
+  background: #080D10;
+  border: 1px solid var(--chart-line-subtle);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cred-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.66rem;
+}
+
+.cred-label {
+  color: var(--muted);
+  font-family: var(--font-data);
+  font-size: 0.60rem;
+}
+
+.cred-val {
+  color: var(--parchment);
+  font-weight: 500;
+}
+
+.role-card-actions {
+  margin-top: auto;
+}
+
+.btn-demo-login {
+  width: 100%;
+  justify-content: center;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   STAKEHOLDER-DRIVEN DASHBOARD COMPONENTS
+   ========================================================================== */
+.stakeholder-hero-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(18, 27, 34, 0.85);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.stakeholder-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(201, 166, 107, 0.12);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+  font-family: var(--font-data);
+  font-size: 0.70rem;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.quick-actions-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(18, 27, 34, 0.7);
+  border: 1px solid var(--chart-line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--parchment);
+  transition: all 0.2s var(--ease-mechanical);
+}
+
+.quick-action-card:hover {
+  background: rgba(201, 166, 107, 0.14);
+  border-color: var(--brass);
+  color: var(--parchment-bright);
+  transform: translateY(-1px);
+}
+
+.quick-action-icon {
+  font-size: 1.2rem;
+}
+
+.quick-action-text {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+

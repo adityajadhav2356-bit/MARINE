@@ -1,9 +1,13 @@
-// ORCA Marine Bridge Console — Master Bootstrapper
-// Manages global state, Web Audio API sound synthesis, i18n localization, and route orchestration
+// MARIX Marine Bridge Console — Master Bootstrapper
+// Manages global state, Web Audio API sound synthesis, i18n localization,
+// dynamic stakeholder state, and route orchestration
 
 import { I18N } from './data/mockData.js';
+import { STAKEHOLDERS } from './data/stakeholders.js';
+import { authService } from './services/authService.js';
 import { Router } from './router.js';
 import { renderLandingView } from './views/landing.js';
+import { renderLoginView } from './views/login.js';
 import { renderChatView } from './views/chat.js';
 import { renderMapView } from './views/map.js';
 import { renderSafetyView } from './views/safety.js';
@@ -120,14 +124,17 @@ class OrcaBridgeApp {
     this.currentLang = localStorage.getItem('orca_lang') || 'en';
     this.soundEngine = new BridgeSoundEngine();
     this.router = null;
+    this.authService = authService;
   }
 
   init() {
     this.bindStaticUI();
+    this.initProfileArea();
     this.startLiveClocks();
 
     const routes = {
       '/': renderLandingView,
+      '/login': renderLoginView,
       '/chat': renderChatView,
       '/map': renderMapView,
       '/safety': renderSafetyView,
@@ -139,11 +146,21 @@ class OrcaBridgeApp {
     this.router = new Router(routes, {
       i18n: I18N[this.currentLang] || I18N.en,
       soundEngine: this.soundEngine,
-      currentLang: this.currentLang
+      currentLang: this.currentLang,
+      authService: this.authService
     });
 
     this.router.init();
     this.updateStaticTranslations();
+
+    // Listen for auth state changes from anywhere in the app
+    window.addEventListener('marix:auth-changed', (e) => {
+      this.updateProfileDisplay(e.detail.user);
+      this.populateDropdownRoles();
+      if (this.router) {
+        this.router.refresh();
+      }
+    });
   }
 
   bindStaticUI() {
@@ -179,6 +196,87 @@ class OrcaBridgeApp {
     });
   }
 
+  initProfileArea() {
+    const badgeBtn = document.getElementById('top-profile-badge');
+    const dropdown = document.getElementById('profile-dropdown-menu');
+    const logoutBtn = document.getElementById('dropdown-btn-logout');
+
+    const currentUser = this.authService.getCurrentUser();
+    this.updateProfileDisplay(currentUser);
+    this.populateDropdownRoles();
+
+    if (badgeBtn && dropdown) {
+      badgeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.soundEngine.playMechanicalClick();
+        dropdown.classList.toggle('open');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#top-profile-container')) {
+          dropdown.classList.remove('open');
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        this.soundEngine.playTacticalChirp();
+        dropdown.classList.remove('open');
+        this.authService.logout();
+      });
+    }
+  }
+
+  updateProfileDisplay(user) {
+    const avatarEl = document.getElementById('top-profile-avatar');
+    const nameEl = document.getElementById('top-profile-name');
+    const roleEl = document.getElementById('top-profile-role');
+    const statusEl = document.getElementById('top-profile-status');
+    const coordsEl = document.getElementById('telemetry-gps');
+
+    if (avatarEl) avatarEl.textContent = user.icon || '⚓';
+    if (nameEl) nameEl.textContent = user.shortName || user.name || 'Aditya';
+    if (roleEl) roleEl.textContent = user.roleTitle || 'Fisherman';
+    if (statusEl) {
+      statusEl.textContent = user.badge || '● Demo Account';
+      statusEl.style.color = user.color || 'var(--phosphor-green)';
+    }
+    if (coordsEl && user.coordinates) {
+      coordsEl.textContent = user.coordinates;
+    }
+  }
+
+  populateDropdownRoles() {
+    const listEl = document.getElementById('dropdown-roles-list');
+    if (!listEl) return;
+
+    const currentUser = this.authService.getCurrentUser();
+    const dropdown = document.getElementById('profile-dropdown-menu');
+
+    listEl.innerHTML = STAKEHOLDERS.map(s => `
+      <div class="dropdown-role-item ${s.id === currentUser.id ? 'active' : ''}" data-role-id="${s.id}">
+        <span class="role-item-icon">${s.icon}</span>
+        <div class="role-item-info">
+          <div class="role-item-name">${s.name}</div>
+          <div class="role-item-title font-data" style="color: ${s.color};">${s.roleTitle}</div>
+        </div>
+        ${s.id === currentUser.id ? '<span class="role-item-check">✓ ACTIVE</span>' : ''}
+      </div>
+    `).join('');
+
+    // Attach 1-click switcher listeners
+    listEl.querySelectorAll('.dropdown-role-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const roleId = item.getAttribute('data-role-id');
+        this.soundEngine.playTacticalChirp();
+        if (dropdown) dropdown.classList.remove('open');
+        this.authService.switchStakeholder(roleId);
+      });
+    });
+  }
+
   setLanguage(lang) {
     this.currentLang = lang;
     localStorage.setItem('orca_lang', lang);
@@ -201,7 +299,7 @@ class OrcaBridgeApp {
     const dict = I18N[this.currentLang] || I18N.en;
     const titleEl = document.getElementById('brand-title-text');
     const subEl = document.getElementById('brand-sub-text');
-    if (titleEl) titleEl.innerHTML = `ORCA <span>CONSOLE</span>`;
+    if (titleEl) titleEl.innerHTML = `ORCA / MARIX <span>CONSOLE</span>`;
     if (subEl) subEl.textContent = dict.system_subtitle;
   }
 
@@ -226,7 +324,7 @@ class OrcaBridgeApp {
       const lonOffset = (Math.random() - 0.5) * 0.0004;
       baseLat += latOffset;
       baseLon += lonOffset;
-      if (coordEl) {
+      if (coordEl && !this.authService.getCurrentUser().coordinates) {
         coordEl.textContent = `${baseLat.toFixed(4)}°N, ${baseLon.toFixed(4)}°E`;
       }
     }, 4000);

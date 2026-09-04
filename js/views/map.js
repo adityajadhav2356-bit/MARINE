@@ -1,13 +1,16 @@
-// ORCA Marine Bridge Console — Interactive Marine Map (/#map)
+// MARIX Marine Bridge Console — Interactive Marine Map (/#map)
 // Leaflet.js ocean cartography, physical brass toggles, PFZ markers, hazard zones & readouts
-//
-// PRIMARY data source: Spring Boot backend  GET /api/pfz  &  GET /api/geofences
-// FALLBACK: mockData.js (used when backend is unreachable)
+// Configures default visible map layers and focus areas according to active stakeholder role.
 
 import { PFZ_ZONES, HAZARD_ZONES, MOCK_VESSELS } from '../data/mockData.js';
 import { initMapViewWithBackend } from '../map.js';
+import { authService } from '../services/authService.js';
 
 export function renderMapView(container, { i18n, soundEngine }) {
+  const user = authService.getCurrentUser();
+  const layers = user.mapLayers || { pfz: true, hazards: true, vessels: true, bathymetry: true };
+  const focus = user.mapFocus || { coords: [18.5, 72.2], zoom: 7 };
+
   container.innerHTML = `
     <div class="map-view-container">
       <!-- Main Ocean Map Canvas -->
@@ -24,35 +27,35 @@ export function renderMapView(container, { i18n, soundEngine }) {
           <span class="panel-title">
             <span class="icon">🧭</span> NAUTICAL OVERLAYS
           </span>
-          <span class="panel-badge badge-amber">LIVE GPS</span>
+          <span class="panel-badge badge-amber">${user.roleTitle.toUpperCase()} VIEW</span>
         </div>
 
         <div style="font-family: var(--font-data); font-size: 0.70rem; color: var(--muted); border-bottom: 1px solid var(--chart-line); padding-bottom: 8px;">
-          ARABIAN SEA SECTOR 4B • CARTO DATUM WGS-84
+          STATION: <strong class="text-brass">${user.station}</strong> • DATUM WGS-84
         </div>
 
-        <!-- Physical Brass Layer Toggles -->
+        <!-- Physical Brass Layer Toggles (Tailored to active role) -->
         <div class="map-layer-toggles">
           <label class="physical-toggle-label">
-            <input type="checkbox" class="physical-toggle-input" id="layer-pfz" checked>
+            <input type="checkbox" class="physical-toggle-input" id="layer-pfz" ${layers.pfz ? 'checked' : ''}>
             <div class="physical-toggle"><div class="physical-toggle-lever"></div></div>
             <span>🐟 PFZ Thermal Fronts</span>
           </label>
 
           <label class="physical-toggle-label">
-            <input type="checkbox" class="physical-toggle-input" id="layer-hazards" checked>
+            <input type="checkbox" class="physical-toggle-input" id="layer-hazards" ${layers.hazards ? 'checked' : ''}>
             <div class="physical-toggle"><div class="physical-toggle-lever"></div></div>
-            <span class="text-red">⚠️ Storm & Hazard Zones</span>
+            <span class="text-red">⚠️ Storm &amp; Hazard Zones</span>
           </label>
 
           <label class="physical-toggle-label">
-            <input type="checkbox" class="physical-toggle-input" id="layer-vessels" checked>
+            <input type="checkbox" class="physical-toggle-input" id="layer-vessels" ${layers.vessels ? 'checked' : ''}>
             <div class="physical-toggle"><div class="physical-toggle-lever"></div></div>
             <span class="text-amber">🚢 AIS Vessel Radar</span>
           </label>
 
           <label class="physical-toggle-label">
-            <input type="checkbox" class="physical-toggle-input" id="layer-bathymetry" checked>
+            <input type="checkbox" class="physical-toggle-input" id="layer-bathymetry" ${layers.bathymetry ? 'checked' : ''}>
             <div class="physical-toggle"><div class="physical-toggle-lever"></div></div>
             <span>🌊 50m / 100m Isobaths</span>
           </label>
@@ -60,7 +63,7 @@ export function renderMapView(container, { i18n, soundEngine }) {
 
         <div style="border-top: 1px solid var(--chart-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
           <div class="panel-title" style="font-size: 0.72rem;">
-            <span class="icon">🎯</span> ZONE QUICK FOCUS
+            <span class="icon">🎯</span> SECTOR QUICK FOCUS
           </div>
           <button class="btn-tactical btn-tactical-sm text-left" id="btn-focus-mumbai">
             📍 Mumbai High Corridor
@@ -70,6 +73,9 @@ export function renderMapView(container, { i18n, soundEngine }) {
           </button>
           <button class="btn-tactical btn-tactical-sm text-left" id="btn-focus-cyclone">
             📍 Cyclone Varuna Eye
+          </button>
+          <button class="btn-tactical btn-tactical-sm text-left text-amber" id="btn-focus-station">
+            🎯 Station Focus: ${user.shortName}
           </button>
         </div>
 
@@ -93,10 +99,10 @@ export function renderMapView(container, { i18n, soundEngine }) {
   const mapEl = container.querySelector('#leaflet-map');
   if (!mapEl || typeof L === 'undefined') return;
 
-  // Center on Arabian Sea / West Coast India (Mumbai / Konkan)
+  // Center on active stakeholder's preferred focus sector
   const map = L.map(mapEl, {
-    center: [18.5, 72.2],
-    zoom: 7,
+    center: focus.coords,
+    zoom: focus.zoom,
     zoomControl: false,
     attributionControl: false
   });
@@ -111,14 +117,19 @@ export function renderMapView(container, { i18n, soundEngine }) {
   }).addTo(map);
 
   // Layer Groups
-  const pfzLayerGroup = L.layerGroup().addTo(map);
-  const hazardLayerGroup = L.layerGroup().addTo(map);
-  const vesselLayerGroup = L.layerGroup().addTo(map);
-  const bathyLayerGroup = L.layerGroup().addTo(map);
+  const pfzLayerGroup = L.layerGroup();
+  const hazardLayerGroup = L.layerGroup();
+  const vesselLayerGroup = L.layerGroup();
+  const bathyLayerGroup = L.layerGroup();
+
+  // Add initial layer groups according to active stakeholder config
+  if (layers.pfz) pfzLayerGroup.addTo(map);
+  if (layers.hazards) hazardLayerGroup.addTo(map);
+  if (layers.vessels) vesselLayerGroup.addTo(map);
+  if (layers.bathymetry) bathyLayerGroup.addTo(map);
 
   // 1. Populate PFZ Zones
   PFZ_ZONES.forEach(pfz => {
-    // Custom Brass/Green SVG Icon for PFZ
     const pfzIcon = L.divIcon({
       className: 'custom-pfz-marker',
       html: `
@@ -140,7 +151,6 @@ export function renderMapView(container, { i18n, soundEngine }) {
 
     const marker = L.marker(pfz.coordinates, { icon: pfzIcon }).addTo(pfzLayerGroup);
 
-    // Instrument Popup
     marker.bindPopup(`
       <div class="map-instrument-popup">
         <div class="map-popup-header">${pfz.name}</div>
@@ -248,7 +258,6 @@ export function renderMapView(container, { i18n, soundEngine }) {
     if (latSpan && lonSpan) {
       latSpan.textContent = `${Math.abs(e.latlng.lat).toFixed(4)}° ${e.latlng.lat >= 0 ? 'N' : 'S'}`;
       lonSpan.textContent = `${Math.abs(e.latlng.lng).toFixed(4)}° ${e.latlng.lng >= 0 ? 'E' : 'W'}`;
-      // Approximate depth based on offshore distance
       const approxDepth = Math.max(12, Math.min(2400, Math.round((73.5 - e.latlng.lng) * 180 + 35)));
       if (depthSpan) depthSpan.textContent = `${approxDepth}m`;
     }
@@ -296,6 +305,11 @@ export function renderMapView(container, { i18n, soundEngine }) {
     map.flyTo([20.80, 68.50], 7);
   });
 
+  container.querySelector('#btn-focus-station').addEventListener('click', () => {
+    if (soundEngine) soundEngine.playTacticalBeep();
+    map.flyTo(focus.coords, focus.zoom);
+  });
+
   function updateInspector(title, text) {
     const titleEl = container.querySelector('#inspector-name');
     const descEl = container.querySelector('#inspector-desc');
@@ -304,11 +318,7 @@ export function renderMapView(container, { i18n, soundEngine }) {
   }
 
   // ── BACKEND LAYER OVERLAY ─────────────────────────────────────────────────
-  // OrcaMap overlays live PFZ + geofence data from the Spring Boot backend
-  // on top of the existing mock AIS / bathymetry layers above.
-  // Falls back gracefully to mock data if the backend is unreachable.
   initMapViewWithBackend(container, soundEngine).catch(function(e) {
     console.warn('[Map View] initMapViewWithBackend error:', e);
   });
 }
-

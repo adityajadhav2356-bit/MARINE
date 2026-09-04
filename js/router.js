@@ -2,6 +2,7 @@
 // Manages zero-build client side routing, view mounting, and navigation state
 
 import { renderLandingView } from './views/landing.js';
+import { renderLoginView } from './views/login.js';
 import { renderChatView } from './views/chat.js';
 import { renderMapView } from './views/map.js';
 import { renderSafetyView } from './views/safety.js';

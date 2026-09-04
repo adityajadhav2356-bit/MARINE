@@ -1,10 +1,13 @@
-// ORCA Marine Bridge Console — Safety & Emergency Operations (/#safety)
-// Regional Risk Gauge bank, real-time alert feed & protocol directives
+// MARIX Marine Bridge Console — Safety & Emergency Operations (/#safety)
+// Regional Risk Gauge bank, real-time alert feed, and stakeholder-tailored protocol directives
 
 import { MONITORED_ZONES, ACTIVE_ALERTS } from '../data/mockData.js';
 import { createRiskGaugeHTML } from '../components/riskGauge.js';
+import { authService } from '../services/authService.js';
 
 export function renderSafetyView(container, { i18n, soundEngine }) {
+  const user = authService.getCurrentUser();
+
   // Generate Regional Risk Gauges HTML
   const gaugesHtml = MONITORED_ZONES.map((zone, idx) => {
     const gauge = createRiskGaugeHTML({
@@ -39,8 +42,18 @@ export function renderSafetyView(container, { i18n, soundEngine }) {
     `;
   }).join('');
 
+  // Sort alerts prioritizing active stakeholder's domain
+  const sortedAlerts = [...ACTIVE_ALERTS].sort((a, b) => {
+    const aPriority = (user.alertsPriority || []).indexOf(a.category);
+    const bPriority = (user.alertsPriority || []).indexOf(b.category);
+    if (aPriority !== -1 && bPriority === -1) return -1;
+    if (aPriority === -1 && bPriority !== -1) return 1;
+    if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
+    return b.riskGaugeScore - a.riskGaugeScore;
+  });
+
   // Generate Alert Feed items
-  const alertsHtml = ACTIVE_ALERTS.map(alert => `
+  const alertsHtml = sortedAlerts.map(alert => `
     <div class="alert-card-item severity-${alert.severity}" data-severity="${alert.severity}">
       <div class="alert-item-header">
         <span class="panel-badge ${alert.severity === 'CRITICAL' ? 'badge-red' : (alert.severity === 'HIGH' ? 'badge-amber' : 'badge-green')}">
@@ -76,7 +89,7 @@ export function renderSafetyView(container, { i18n, soundEngine }) {
             Safety & Marine Hazard Operations
           </h1>
           <div class="font-data text-muted" style="font-size: 0.75rem;">
-            CONTINUOUS MULTI-ZONE INSTRUMENT TELEMETRY & EMERGENCY FEEDS
+            ROLE: <strong class="text-brass">${user.name} (${user.roleTitle})</strong> • CONTINUOUS TELEMETRY & EMERGENCY FEEDS
           </div>
         </div>
 
@@ -102,13 +115,13 @@ export function renderSafetyView(container, { i18n, soundEngine }) {
         </div>
       </div>
 
-      <!-- Live Emergency Alerts Feed & Emergency Action Cards -->
+      <!-- Live Emergency Alerts Feed & Stakeholder Emergency Action Cards -->
       <div class="safety-feed-section">
         <!-- Left: Alert Feed -->
         <div class="bezel-panel">
           <div class="panel-header">
             <span class="panel-title">
-              <span class="icon">🚨</span> ACTIVE MARITIME BROADCASTS
+              <span class="icon">🚨</span> ACTIVE MARITIME BROADCASTS (PRIORITIZED FOR ${user.roleTitle.toUpperCase()})
             </span>
             
             <!-- Severity Filter Buttons -->
@@ -127,22 +140,35 @@ export function renderSafetyView(container, { i18n, soundEngine }) {
           </div>
         </div>
 
-        <!-- Right: SOS / Rescue Telemetry Directives -->
+        <!-- Right: Stakeholder Distress & Operational Directive Cards -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <div class="bezel-panel panel-body" style="background: rgba(255, 92, 92, 0.08); border-color: var(--radar-red);">
             <div class="font-data text-red" style="font-size: 0.78rem; font-weight: 700; margin-bottom: 6px;">
-              ⚠️ MARITIME DISTRESS PROTOCOL
+              ⚠️ ${user.terminology?.directiveLabel || 'MARITIME DISTRESS PROTOCOL'}
             </div>
             <div style="font-size: 0.82rem; color: var(--parchment); line-height: 1.5;">
               Coast Guard Maritime Rescue Coordination Centre (MRCC Mumbai) is broadcasting on MF DSC 2187.5 kHz and VHF CH 16.
             </div>
             <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
-              <a href="tel:1554" class="btn-tactical btn-tactical-red" style="width: 100%;">
+              <a href="tel:1554" class="btn-tactical btn-tactical-red" style="width: 100%; justify-content: center;">
                 📞 CALL COAST GUARD (1554)
               </a>
-              <button class="btn-tactical btn-tactical-amber" id="btn-broadcast-ack" style="width: 100%;">
+              <button class="btn-tactical btn-tactical-amber" id="btn-broadcast-ack" style="width: 100%; justify-content: center;">
                 📻 ACKNOWLEDGE BROADCAST
               </button>
+            </div>
+          </div>
+
+          <!-- Stakeholder AI Live Directives -->
+          <div class="bezel-panel panel-body">
+            <div class="font-data text-brass" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 6px;">
+              🤖 ${user.roleTitle.toUpperCase()} SAFETY DIRECTIVE
+            </div>
+            <div style="font-size: 0.78rem; color: var(--parchment-bright); line-height: 1.4; margin-bottom: 8px;">
+              ${user.aiRecommendation}
+            </div>
+            <div class="font-data text-muted" style="font-size: 0.68rem;">
+              STATION: <span class="text-brass">${user.station}</span>
             </div>
           </div>
 

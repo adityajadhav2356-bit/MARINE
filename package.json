@@ -1,0 +1,22 @@
+{
+  "name": "marix-marine-intelligence",
+  "version": "2.4.0",
+  "description": "MARIX / ORCA Autonomous Marine Intelligence & Vessel Safety Bridge Console",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "marix",
+    "orca",
+    "marine",
+    "intelligence",
+    "oceanography",
+    "vessel-safety",
+    "incois",
+    "pfz"
+  ],
+  "author": "MARIX Team",
+  "license": "MIT"
+}

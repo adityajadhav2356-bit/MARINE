@@ -49,12 +49,47 @@
           <span class="beacon-pulse"></span>
           <span>SYS NOMINAL</span>
         </div>
+
+        <!-- Top-Right Stakeholder Profile Area -->
+        <div class="top-profile-container" id="top-profile-container">
+          <button class="top-profile-badge" id="top-profile-badge" aria-label="Stakeholder Profile & Switcher">
+            <div class="profile-avatar" id="top-profile-avatar">🎣</div>
+            <div class="profile-details">
+              <div class="profile-name" id="top-profile-name">Aditya</div>
+              <div class="profile-role" id="top-profile-role">Fisherman</div>
+              <div class="profile-status" id="top-profile-status">● Demo Account</div>
+            </div>
+            <span class="profile-chevron">▼</span>
+          </button>
+
+          <!-- Stakeholder Fast Switcher Dropdown Menu -->
+          <div class="profile-dropdown-menu" id="profile-dropdown-menu">
+            <div class="dropdown-header">
+              <span class="font-data text-brass" style="font-size: 0.68rem; font-weight: 700;">SWITCH STAKEHOLDER ROLE</span>
+            </div>
+            <div class="dropdown-roles-list" id="dropdown-roles-list">
+              <!-- Dynamically populated from STAKEHOLDERS -->
+            </div>
+            <div class="dropdown-footer">
+              <a href="#/login" class="dropdown-action-link" id="dropdown-link-login">
+                <span>🔑</span> Demo Login Hub / Accounts
+              </a>
+              <button class="dropdown-action-btn text-red" id="dropdown-btn-logout">
+                <span>🚪</span> Sign Out / Reset
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <!-- Slim Left Console Rail Navigation (Icon-Only) -->
     <nav id="console-rail">
       <div class="rail-nav-group">
+        <a href="#/login" class="rail-nav-item" id="nav-login" title="Demo Login / Stakeholder Hub">
+          👤
+          <span class="rail-tooltip">Demo Stakeholder Hub (/login)</span>
+        </a>
         <a href="#/" class="rail-nav-item active" id="nav-landing" title="Bridge Home">
           ⚓
           <span class="rail-tooltip">Bridge Overview (/)</span>

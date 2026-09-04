@@ -1,12 +1,22 @@
-// ORCA Marine Bridge Console — Generative Canvas (/#chat)
+// MARIX Marine Bridge Console — Generative Canvas (/#chat)
 // Dual-mode: connects to Spring Boot POST /api/chat (SSE) or falls back to simulated engine.
+// Personalizes suggested questions, role context, and terminology for the active stakeholder.
 
 import { GenerativeUIRenderer, GenerativeAgentBridge } from '../services/generativeUI.js';
 import { CanvasRenderer, SpringBootBridge } from '../services/renderer.js';
+import { authService } from '../services/authService.js';
 
 export function renderChatView(container, { i18n, soundEngine }) {
-  const bridge       = new GenerativeAgentBridge();
-  const sbBridge     = new SpringBootBridge(); // Spring Boot SSE bridge
+  const bridge = new GenerativeAgentBridge();
+  const sbBridge = new SpringBootBridge(); // Spring Boot SSE bridge
+  const user = authService.getCurrentUser();
+
+  // Generate tactical presets based on active stakeholder's suggested questions
+  const presetsHtml = (user.suggestedQuestions || []).map(preset => `
+    <button class="preset-chip-btn" data-query="${_escape(preset.query)}">
+      <span>${preset.label}</span>
+    </button>
+  `).join('');
 
   container.innerHTML = `
     <div class="chat-canvas-view">      <!-- Message Stream Canvas -->
@@ -14,30 +24,22 @@ export function renderChatView(container, { i18n, soundEngine }) {
 
         <!-- Tactical Presets (hidden once first query is submitted) -->
         <div class="empty-canvas-panel" id="canvas-empty-state">
-          <div style="font-size: 3rem; margin-bottom: 12px;">⚓</div>
-          <h2 class="font-display" style="font-size: 1.5rem; font-weight: 700; color: var(--parchment-bright); margin-bottom: 8px;">
+          <div style="font-size: 3rem; margin-bottom: 8px;">${user.icon || '⚓'}</div>
+          <h2 class="font-display" style="font-size: 1.5rem; font-weight: 700; color: var(--parchment-bright); margin-bottom: 4px;">
             Bridge Reasoning Intercom
           </h2>
-          <p class="font-data" style="font-size: 0.80rem; color: var(--muted); max-width: 540px; text-align: center; line-height: 1.6; margin-bottom: 24px;">
-            Transmit an operational query. ORCA streams its chain-of-thought and then 
-            <strong style="color: var(--brass);">dynamically generates the exact UI components</strong> needed to answer.
+          <div class="stakeholder-badge-pill" style="border-color: ${user.color}; color: ${user.color}; margin-bottom: 12px;">
+            ${user.name} // ${user.roleTitle}
+          </div>
+          <p class="font-data" style="font-size: 0.80rem; color: var(--muted); max-width: 560px; text-align: center; line-height: 1.6; margin-bottom: 20px;">
+            Transmit an operational query. MARIX streams its chain-of-thought and then 
+            <strong style="color: var(--brass);">dynamically generates the exact UI components</strong> tailored to ${user.roleTitle} operations.
           </p>
           <div class="font-data text-brass" style="font-size: 0.68rem; letter-spacing: 0.1em; margin-bottom: 12px;">
-            ▶ TACTICAL PRESETS — CLICK TO TRANSMIT
+            ▶ SUGGESTED QUESTIONS FOR ${user.roleTitle.toUpperCase()} — CLICK TO TRANSMIT
           </div>
-          <div class="tactical-presets-grid" style="width: 100%; max-width: 700px;">
-            <button class="preset-chip-btn" data-query="Assess cyclone alert and sea state hazard near Mumbai coast">
-              <span>🌪️</span><span>Cyclone &amp; Sea State (Mumbai)</span>
-            </button>
-            <button class="preset-chip-btn" data-query="Find high-yield fishing zones with thermal fronts on Konkan coast">
-              <span>🐟</span><span>PFZ Discovery (Konkan Coast)</span>
-            </button>
-            <button class="preset-chip-btn" data-query="Safe route vs shortest route from Veraval to Ratnagiri">
-              <span>🚢</span><span>Route Planner (Veraval → Ratnagiri)</span>
-            </button>
-            <button class="preset-chip-btn" data-query="Analyze SST anomaly and chlorophyll upwelling dynamics">
-              <span>🔬</span><span>SST &amp; Upwelling Research</span>
-            </button>
+          <div class="tactical-presets-grid" style="width: 100%; max-width: 760px;">
+            ${presetsHtml}
           </div>
         </div>
 
@@ -59,7 +61,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
         <div class="intercom-meta-row">
           <div class="intercom-chan-select">
             <span>📻</span>
-            <span class="text-brass font-data" style="font-weight: 700;">VHF-CH 16 / MULTIMODAL REASONING BRIDGE</span>
+            <span class="text-brass font-data" style="font-weight: 700;">VHF-CH 16 / ${user.roleTitle.toUpperCase()} REASONING BRIDGE</span>
           </div>
           <div class="intercom-tx-indicator" id="tx-status">
             <span class="intercom-tx-dot"></span>
@@ -73,7 +75,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
           <textarea
             id="chat-input"
             class="intercom-textarea"
-            placeholder="Transmit operational query... (e.g. 'Assess cyclone risk near Mumbai' or 'Find best fishing zones')"
+            placeholder="${_escape(user.terminology?.intercomPrompt || 'Transmit operational query...')}"
             rows="1"
           ></textarea>
           <button type="submit" class="btn-tactical btn-tactical-amber" style="height: 44px; padding: 0 18px; white-space: nowrap;">
@@ -84,10 +86,10 @@ export function renderChatView(container, { i18n, soundEngine }) {
     </div>
   `;
 
-  const streamBox  = container.querySelector('#chat-stream-box');
-  const emptyState  = container.querySelector('#canvas-empty-state');
-  const thread      = container.querySelector('#messages-thread');
-  const canvasEl    = container.querySelector('#canvas');
+  const streamBox = container.querySelector('#chat-stream-box');
+  const emptyState = container.querySelector('#canvas-empty-state');
+  const thread = container.querySelector('#messages-thread');
+  const canvasEl = container.querySelector('#canvas');
 
   // Attach the backend CanvasRenderer to the #canvas div
   const canvasRenderer = new CanvasRenderer(canvasEl);
@@ -130,8 +132,6 @@ export function renderChatView(container, { i18n, soundEngine }) {
     if (soundEngine) soundEngine.playTransmissionSound();
 
     // ── BACKEND PATH (primary) ─────────────────────────────
-    // Streams status → result events from POST /api/chat.
-    // CanvasRenderer handles all rendering; no need to touch #canvas manually.
     sbBridge.streamTo(promptText, canvasRenderer).catch(function(e) {
       console.warn('[Chat] SpringBootBridge error:', e);
     });
@@ -143,7 +143,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
     userBubble.className = 'chat-msg user';
     userBubble.innerHTML = `
       <div class="msg-header" style="justify-content: flex-end;">
-        <span class="font-data" style="font-size: 0.68rem;">BRIDGE OFFICER</span>
+        <span class="font-data text-parchment" style="font-size: 0.68rem; font-weight: 700;">${_escape(user.name)} (${_escape(user.roleTitle)})</span>
         <span class="text-muted">•</span>
         <span class="font-data text-muted" style="font-size: 0.68rem;">${timestamp}</span>
       </div>
@@ -159,7 +159,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
     agentBubble.innerHTML = `
       <div class="msg-header">
         <span class="beacon-pulse" style="width: 5px; height: 5px;"></span>
-        <span class="font-data text-brass" style="font-weight: 700; font-size: 0.72rem;">ORCA REASONING AGENT</span>
+        <span class="font-data text-brass" style="font-weight: 700; font-size: 0.72rem;">MARIX REASONING AGENT</span>
         <span class="text-muted">•</span>
         <span class="font-data text-muted" style="font-size: 0.68rem;">${timestamp}</span>
         <span class="genui-status-badge panel-badge badge-amber" style="margin-left: 6px;">⚙ SYNTHESIZING...</span>
@@ -199,22 +199,17 @@ export function renderChatView(container, { i18n, soundEngine }) {
     // ── 3. ATTACH GENERATIVE UI RENDERER TO THIS BUBBLE ─────────────────
     const renderer = new GenerativeUIRenderer(agentBubble);
 
-    // Auto-scroll as content streams in
     const scrollObserver = new MutationObserver(() => {
       streamBox.scrollTop = streamBox.scrollHeight;
     });
     scrollObserver.observe(agentBubble, { childList: true, subtree: true });
 
-    // Update TX status
     txStatusText.textContent = 'TRANSMITTING...';
     txStatusText.style.color = 'var(--phosphor-amber)';
 
     // ── 4. STREAM AGENT EVENTS → RENDERER ────────────────────────────────
-    // Each event could be a prose delta, reasoning step, or a COMPONENT SPEC.
-    // The renderer handles all of them — this is the Generative UI loop.
     await bridge.streamTo(promptText, renderer);
 
-    // Done
     txStatusText.textContent = 'TX READY';
     txStatusText.style.color = 'var(--phosphor-green)';
     scrollObserver.disconnect();
@@ -224,6 +219,6 @@ export function renderChatView(container, { i18n, soundEngine }) {
   }
 
   function _escape(str) {
-    return str.replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]));
+    return (str || '').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]));
   }
 }

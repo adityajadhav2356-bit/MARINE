@@ -1,7 +1,8 @@
-// ORCA Agent Bridge Service
+// MARIX Agent Bridge Service
 // Coordinates multimodal reasoning with AI Agents (Mock SSE Streamer + Live API Adapter)
+// Enhanced with specialized reasoning pipelines for all 6 stakeholder roles.
 
-import { PFZ_ZONES, MONITORED_ZONES, ACTIVE_ALERTS, ROUTE_PRESETS } from '../data/mockData.js';
+import { PFZ_ZONES, MONITORED_ZONES, ACTIVE_ALERTS, ROUTE_PRESETS, MOCK_VESSELS } from '../data/mockData.js';
 import { 
   createRiskCard, 
   createPFZCard, 
@@ -61,7 +62,7 @@ export class AgentBridgeService {
 
     // 1. Stream Chain of Thought step by step
     for (let i = 0; i < mockPlan.steps.length; i++) {
-      await this.delay(350);
+      await this.delay(320);
       if (onChunk) {
         onChunk({ type: 'STEP', step: mockPlan.steps[i], stepIndex: i });
       }
@@ -72,14 +73,14 @@ export class AgentBridgeService {
     let currentProse = '';
     for (let word of words) {
       currentProse += word + ' ';
-      await this.delay(40);
+      await this.delay(35);
       if (onChunk) {
         onChunk({ type: 'PROSE_DELTA', text: currentProse });
       }
     }
 
     // 3. Emit rendered component cards
-    await this.delay(200);
+    await this.delay(180);
     yield {
       type: 'COMPLETE',
       prose: mockPlan.prose,
@@ -90,13 +91,19 @@ export class AgentBridgeService {
 
   detectIntent(prompt) {
     const p = prompt.toLowerCase();
-    if (p.includes('cyclone') || p.includes('storm') || p.includes('wave') || p.includes('mumbai') || p.includes('risk')) {
+    if (p.includes('fleet') || p.includes('enforce') || p.includes('permit') || p.includes('trawler') || p.includes('quota') || p.includes('unauthorized') || p.includes('recall')) {
+      return 'FLEET_ENFORCEMENT';
+    } else if (p.includes('aquaculture') || p.includes('oxygen') || p.includes('salinity') || p.includes('hab') || p.includes('algal') || p.includes('cage') || p.includes('feed')) {
+      return 'AQUACULTURE_WATER';
+    } else if (p.includes('vts') || p.includes('anchorage') || p.includes('fairway') || p.includes('ukc') || p.includes('draught') || p.includes('draft') || p.includes('shoal') || p.includes('harbour master')) {
+      return 'PORT_VTS';
+    } else if (p.includes('cyclone') || p.includes('storm') || p.includes('surge') || p.includes('evacuat') || p.includes('disaster') || p.includes('inundation') || p.includes('varuna')) {
       return 'STORM_RISK';
-    } else if (p.includes('fish') || p.includes('pfz') || p.includes('catch') || p.includes('konkan') || p.includes('yield')) {
+    } else if (p.includes('fish') || p.includes('pfz') || p.includes('catch') || p.includes('konkan') || p.includes('yield') || p.includes('mackerel') || p.includes('trawl')) {
       return 'PFZ_SEARCH';
-    } else if (p.includes('route') || p.includes('veraval') || p.includes('ratnagiri') || p.includes('navigation') || p.includes('port')) {
+    } else if (p.includes('route') || p.includes('veraval') || p.includes('ratnagiri') || p.includes('waypoint') || p.includes('fuel-saving')) {
       return 'ROUTE_OPTIMIZE';
-    } else if (p.includes('sst') || p.includes('chlorophyll') || p.includes('upwelling') || p.includes('temperature') || p.includes('research')) {
+    } else if (p.includes('sst') || p.includes('chlorophyll') || p.includes('upwelling') || p.includes('temperature') || p.includes('research') || p.includes('ekman') || p.includes('thermocline')) {
       return 'RESEARCH_SST';
     }
     return 'GENERAL_MARITIME';
@@ -104,39 +111,127 @@ export class AgentBridgeService {
 
   generatePlanForIntent(intent, originalPrompt) {
     switch (intent) {
+      case 'FLEET_ENFORCEMENT': {
+        return {
+          steps: [
+            "Querying AIS transponder registry & coastal radar tracking network...",
+            "Matching active vessels against National Maritime Quota database...",
+            "Correlating 118 vessel positions with Cyclone Varuna hazard perimeter...",
+            "Generating fleet compliance directives and broadcast recall payload..."
+          ],
+          prose: `Surveillance Mesh Synthesis for **${originalPrompt}**: 118 licensed fishing vessels are actively tracked in Sector 4B. 12 artisanal and commercial trawlers are currently operating within 35 nm of Deep Depression Varuna's gale perimeter. Immediate VHF DSC recall on Channel 16 is mandated. Quota harvest compliance across the monitored fleet stands at 98.2% nominal.`,
+          cardsHtml: [
+            createVesselAdvisoryCard({
+              priority: "CRITICAL",
+              heading: "Fleet Recall Advisory — Sector 2A / 4B",
+              text: "12 vessels inside hazardous swell radius. Order immediate retreat to Ratnagiri and Mumbai safe inner roadsteads.",
+              safeHarbor: "Ratnagiri & JNPT Anchorages",
+              vhf: "VHF CH 16 / DSC 2187.5 kHz"
+            }),
+            createRiskCard({
+              riskScore: 78,
+              status: "FLEET AT RISK",
+              zoneName: "ARABIAN SEA NORTH",
+              title: "12 Vessels In Outer Storm Cone",
+              description: "Breaking swells of 4.8m. Gale force winds 45-55 kts.",
+              coordinates: "20°48'N, 68°30'E",
+              swell: "4.8m",
+              wind: "52 kts"
+            })
+          ].join('')
+        };
+      }
+
+      case 'AQUACULTURE_WATER': {
+        return {
+          steps: [
+            "Ingesting coastal sensor buoy telemetry (DO, Salinity, Temperature)...",
+            "Screening Copernicus Sentinel-3 OLCI spectral bands for HAB / dinoflagellate pigments...",
+            "Computing wave stress on offshore sea-cage mooring anchor arrays...",
+            "Generating dissolved oxygen trajectory and supplementary aeration schedule..."
+          ],
+          prose: `Mariculture Diagnostic for **${originalPrompt}**: Water parameters across the Devgad & Ratnagiri sea-cage clusters are favorable. Dissolved Oxygen is optimal at 6.8 mg/L with water temperature steady at 27.4°C. Sentinel-3 multispectral imagery shows HAB (Harmful Algal Bloom) risk is NEGATIVE. Wave stress on cage moorings under current 1.2m swell is within structural safety limits (<38% tension load).`,
+          cardsHtml: [
+            createWeatherCard({
+              pressure: "1011.8 hPa",
+              sst: "27.4°C (Optimal)",
+              wind: "11 kts NW",
+              swell: "1.1m (Calm Inside Lee)",
+              visibility: "10.0 nm"
+            }),
+            createReasoningLogCard([
+              "Dissolved Oxygen (DO): 6.8 mg/L (Safe Threshold > 5.0 mg/L)",
+              "Salinity: 34.2 ppt • pH: 8.15 • Turbidity: 1.4 NTU",
+              "Harmful Algal Bloom (HAB) Index: 0.04 (Negative / Clear)",
+              "Mooring Line Tension: 38% nominal load limit",
+              "Recommendation: Schedule optional aeration from 0200Z to 0600Z during neap low tide."
+            ])
+          ].join('')
+        };
+      }
+
+      case 'PORT_VTS': {
+        return {
+          steps: [
+            "Querying Mumbai Port VTS Radar & AIS Fairway Transponders...",
+            "Calculating Under-Keel Clearance (UKC) across outer channel bathymetry...",
+            "Evaluating anchorage queue density and fog visibility degradation...",
+            "Generating pilotage and draught restriction protocol..."
+          ],
+          prose: `VTS Operational Assessment for **${originalPrompt}**: 48 cargo and tanker vessels are currently staged at Mumbai Outer Anchorage. Dense morning radiation fog has reduced fairway visibility to 1.2 nm. Under-Keel Clearance (UKC) for inbound VLCCs is restricted to 3.2m during current low water. Mandatory 0.5 nm radar guard separation and VHF Channel 12/16 watch is in effect.`,
+          cardsHtml: [
+            createRiskCard({
+              riskScore: 62,
+              status: "CONGESTION ADVISORY",
+              zoneName: "MUMBAI OUTER FAIRWAY",
+              title: "48 Vessels Staged at Outer Roads",
+              description: "Reduced visibility (<1.2 nm). Draught restrictions on Berths 4-7.",
+              coordinates: "18°54'N, 72°45'E",
+              swell: "1.8m",
+              wind: "14 kts"
+            }),
+            createWeatherCard({
+              pressure: "1009.2 hPa",
+              sst: "28.1°C",
+              wind: "14 kts SW",
+              swell: "1.8m Moderate",
+              visibility: "1.2 nm (Dense Fog)"
+            })
+          ].join('')
+        };
+      }
+
       case 'STORM_RISK': {
-        const zone = MONITORED_ZONES[0]; // Arabian Sea North
-        const alert = ACTIVE_ALERTS[0];
         return {
           steps: [
             "Querying Doppler Weather Radar feed & INCOIS Ocean Wave buoy network...",
-            "Computing barometric gradient and squall propagation vectors...",
-            "Evaluating cyclone risk coefficient for North Arabian Sea sector..."
+            "Computing barometric gradient, storm surge vectors, and breaking swell heights...",
+            "Evaluating civil defense evacuation staging for Saurashtra & Konkan ports..."
           ],
-          prose: `ORCA Bridge Reasoning Engine has completed real-time assessment for **${originalPrompt}**. Doppler radar reflects Tropical Depression Varuna escalating at 14 knots with central pressure dropping to 988 hPa. Significant wave heights exceed 4.8m in Sector 2A with peak gusts to 65 knots. Small craft and non-ice-class vessels must immediately abort open transit and seek shelter in Ratnagiri or Mumbai inner anchorage.`,
+          prose: `Disaster Command Synthesis for **${originalPrompt}**: Deep Depression Varuna is intensifying with central pressure plunging to **988 hPa** and tracking NE at 14 knots. Phenomenal wave heights (5.8m) with gale winds reaching 55 kts (gusts 65 kts) will impact Saurashtra coastline within 18 hours. Port Danger Signal No. 8 hoisted at Okha and Porbandar. Coastal inundation simulation indicates a 1.4m surge above astronomical high tide.`,
           cardsHtml: [
             createRiskCard({
-              riskScore: 84,
-              status: "CRITICAL ALERT",
+              riskScore: 88,
+              status: "CRITICAL CYCLONE CORE",
               zoneName: "NORTH ARABIAN SEA",
-              title: "Tropical Depression Varuna (Hazard Index 84/100)",
-              description: "Severe sea-state escalation with breaking swells. Gale warning active.",
+              title: "Deep Depression Varuna (Hazard Index 88/100)",
+              description: "Severe gale escalation with 5.8m breaking swells. Port Danger Signal 8.",
               coordinates: "20°48'N, 68°30'E",
-              swell: "4.8m - 6.1m Violent",
-              wind: "52 kts (Gale Force)"
+              swell: "4.8m - 5.8m Phenomenal",
+              wind: "55 kts (Gale Force)"
             }),
             createWeatherCard({
               pressure: "988.4 hPa (Rapid Fall)",
               sst: "29.4°C (+1.8° Anomaly)",
-              wind: "52 kts WNW",
-              swell: "5.4m @ 14.8s",
-              visibility: "1.2 nm (Heavy Squalls)"
+              wind: "55 kts WNW",
+              swell: "5.8m @ 15.2s",
+              visibility: "0.8 nm (Violent Squalls)"
             }),
             createVesselAdvisoryCard({
               priority: "CRITICAL",
-              heading: "Emergency Harbor Divert Order",
-              text: "Suspend all fishing and towing operations. Plot course 120° towards Ratnagiri Port approaches. Maintain continuous watch on VHF CH 16.",
-              safeHarbor: "Ratnagiri Anchorage (Safe Water Mark)",
+              heading: "Emergency Harbor Evacuation Order",
+              text: "Suspend all port operations. Plot course 120° towards Ratnagiri or Mumbai inner roads. Continuous watch on VHF CH 16.",
+              safeHarbor: "Ratnagiri Anchorage / JNPT",
               vhf: "VHF CH 16 / DSC MF 2187.5 kHz"
             })
           ].join('')
@@ -230,7 +325,7 @@ export class AgentBridgeService {
             "Querying real-time coastal telemetry and AIS vessel positions...",
             "Synthesizing navigational advisory..."
           ],
-          prose: `ORCA Bridge Console is actively monitoring maritime space. All sensor adapters (INCOIS, NOAA, Sentinel-3, IMD Radar, and AIS) are synchronized with sub-second latency. No anomalous distress transmissions detected in your immediate quadrant. Select a tactical preset or input specific coordinate queries below.`,
+          prose: `MARIX Autonomous Marine Intelligence Bridge is actively monitoring maritime space. All sensor adapters (INCOIS, NOAA, Sentinel-3, IMD Radar, and AIS) are synchronized with sub-second latency. No anomalous distress transmissions detected in your immediate quadrant.`,
           cardsHtml: [
             createRiskCard({
               riskScore: 28,
