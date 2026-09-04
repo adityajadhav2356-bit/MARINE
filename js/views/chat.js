@@ -186,10 +186,12 @@ export function renderChatView(container, { i18n, soundEngine }) {
       return;
     }
 
-    // ── BACKEND PATH (primary) ─────────────────────────────
-    sbBridge.streamTo(promptText, canvasRenderer).catch(function(e) {
-      console.warn('[Chat] SpringBootBridge error:', e);
-    });
+    // ── BACKEND PATH (only if LIVE_API is enabled) ──────────────────────
+    if (bridge.mode === 'LIVE_API') {
+      sbBridge.streamTo(promptText, canvasRenderer).catch(function(e) {
+        console.warn('[Chat] SpringBootBridge error:', e);
+      });
+    }
 
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
 

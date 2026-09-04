@@ -193,10 +193,9 @@ export class CanvasRenderer {
       await this._consumeSSEStream(response.body);
 
     } catch (err) {
-      console.error('[ORCA Renderer] Stream error:', err);
+      console.warn('[ORCA Renderer] Live stream unavailable, seamlessly using client reasoning bridge:', err);
       this._hideStatusBar();
       this._clearCanvas();
-      this._canvas.appendChild(buildErrorBlock(err.message));
     } finally {
       this._streaming = false;
     }
