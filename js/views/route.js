@@ -122,9 +122,10 @@ export function renderRouteView(container, { i18n, soundEngine }) {
     attributionControl: false
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 18,
-    subdomains: 'abcd',
+  // Robust Nautical Basemap (Zero API Key required)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 13,
+    attribution: 'Esri Ocean, GEBCO, NOAA'
   }).addTo(map);
 
   const routeLayerGroup = L.layerGroup().addTo(map);

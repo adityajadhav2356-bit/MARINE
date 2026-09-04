@@ -1,15 +1,39 @@
 // MARIX Marine Bridge Console — Interactive Marine Map (/#map)
-// Leaflet.js ocean cartography, physical brass toggles, PFZ markers, hazard zones & readouts
-// Configures default visible map layers and focus areas according to active stakeholder role.
+// Leaflet.js ocean cartography with multi-provider demo basemaps (Zero API key required)
+// Features Esri World Ocean bathymetry, CartoDB Dark Tactical, Satellite, and OSM layers.
 
 import { PFZ_ZONES, HAZARD_ZONES, MOCK_VESSELS } from '../data/mockData.js';
 import { initMapViewWithBackend } from '../map.js';
 import { authService } from '../services/authService.js';
 
+export const BASEMAP_PROVIDERS = {
+  ocean: {
+    name: "🌊 Esri World Ocean (Bathymetric)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
+    options: { maxZoom: 13, attribution: "Esri, GEBCO, NOAA, National Geographic" }
+  },
+  dark: {
+    name: "🌑 Dark Tactical Console (CARTO)",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    options: { maxZoom: 18, subdomains: "abcd", attribution: "&copy; OpenStreetMap, &copy; CARTO" }
+  },
+  satellite: {
+    name: "🛰️ Satellite Multispectral (Esri)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }
+  },
+  osm: {
+    name: "🗺️ OpenStreetMap Marine Standard",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: { maxZoom: 18, attribution: "&copy; OpenStreetMap contributors" }
+  }
+};
+
 export function renderMapView(container, { i18n, soundEngine }) {
   const user = authService.getCurrentUser();
   const layers = user.mapLayers || { pfz: true, hazards: true, vessels: true, bathymetry: true };
   const focus = user.mapFocus || { coords: [18.5, 72.2], zoom: 7 };
+  let currentTileLayer = null;
 
   container.innerHTML = `
     <div class="map-view-container">
@@ -27,14 +51,27 @@ export function renderMapView(container, { i18n, soundEngine }) {
           <span class="panel-title">
             <span class="icon">🧭</span> NAUTICAL OVERLAYS
           </span>
-          <span class="panel-badge badge-amber">${user.roleTitle.toUpperCase()} VIEW</span>
+          <span class="panel-badge badge-green">NO API KEY REQ</span>
         </div>
 
         <div style="font-family: var(--font-data); font-size: 0.70rem; color: var(--muted); border-bottom: 1px solid var(--chart-line); padding-bottom: 8px;">
           STATION: <strong class="text-brass">${user.station}</strong> • DATUM WGS-84
         </div>
 
-        <!-- Physical Brass Layer Toggles (Tailored to active role) -->
+        <!-- Basemap Provider Selector (Zero API Key Needed) -->
+        <div class="route-form-group" style="margin-top: 6px;">
+          <label class="font-data text-brass" style="font-size: 0.68rem; font-weight: 700;">
+            🗺️ NAUTICAL BASEMAP (DEMO READY)
+          </label>
+          <select class="route-select" id="map-basemap-select" style="font-size: 0.72rem; padding: 6px 8px;">
+            <option value="ocean" selected>🌊 Esri World Ocean (Bathymetric)</option>
+            <option value="dark">🌑 Dark Tactical Console (CARTO)</option>
+            <option value="satellite">🛰️ Satellite Multispectral (Esri)</option>
+            <option value="osm">🗺️ OpenStreetMap Standard</option>
+          </select>
+        </div>
+
+        <!-- Physical Brass Layer Toggles -->
         <div class="map-layer-toggles">
           <label class="physical-toggle-label">
             <input type="checkbox" class="physical-toggle-input" id="layer-pfz" ${layers.pfz ? 'checked' : ''}>
@@ -99,7 +136,6 @@ export function renderMapView(container, { i18n, soundEngine }) {
   const mapEl = container.querySelector('#leaflet-map');
   if (!mapEl || typeof L === 'undefined') return;
 
-  // Center on active stakeholder's preferred focus sector
   const map = L.map(mapEl, {
     center: focus.coords,
     zoom: focus.zoom,
@@ -107,14 +143,36 @@ export function renderMapView(container, { i18n, soundEngine }) {
     attributionControl: false
   });
 
-  // Custom Zoom Control placed top-left with brass styling
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // High-contrast Dark Matter Ocean Basemap
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 18,
-    subdomains: 'abcd',
-  }).addTo(map);
+  // Set initial basemap
+  function setBasemap(providerKey) {
+    const provider = BASEMAP_PROVIDERS[providerKey] || BASEMAP_PROVIDERS.ocean;
+    if (currentTileLayer) {
+      map.removeLayer(currentTileLayer);
+    }
+
+    currentTileLayer = L.tileLayer(provider.url, {
+      ...provider.options,
+      // Error recovery fallback: if tiles fail to load, fallback to Esri Ocean
+      errorTileUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/0/0/0'
+    }).addTo(map);
+
+    currentTileLayer.on('tileerror', () => {
+      console.warn('[Map] Tile error on', providerKey, '- fallback ready');
+    });
+  }
+
+  setBasemap('ocean');
+
+  // Basemap Selector Change Handler
+  const basemapSelect = container.querySelector('#map-basemap-select');
+  if (basemapSelect) {
+    basemapSelect.addEventListener('change', (e) => {
+      if (soundEngine) soundEngine.playMechanicalClick();
+      setBasemap(e.target.value);
+    });
+  }
 
   // Layer Groups
   const pfzLayerGroup = L.layerGroup();
@@ -122,7 +180,6 @@ export function renderMapView(container, { i18n, soundEngine }) {
   const vesselLayerGroup = L.layerGroup();
   const bathyLayerGroup = L.layerGroup();
 
-  // Add initial layer groups according to active stakeholder config
   if (layers.pfz) pfzLayerGroup.addTo(map);
   if (layers.hazards) hazardLayerGroup.addTo(map);
   if (layers.vessels) vesselLayerGroup.addTo(map);
@@ -244,8 +301,8 @@ export function renderMapView(container, { i18n, soundEngine }) {
   const bathy50m = L.polyline([
     [21.8, 69.2], [20.5, 70.8], [19.2, 72.1], [18.0, 72.7], [16.5, 73.1], [15.0, 73.5], [10.0, 75.4]
   ], {
-    color: '#24333B',
-    weight: 1.5,
+    color: '#34495E',
+    weight: 1.8,
     dashArray: '3, 4'
   }).addTo(bathyLayerGroup);
 

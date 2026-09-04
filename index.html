@@ -50,6 +50,13 @@
           <span>SYS NOMINAL</span>
         </div>
 
+        <!-- Global Voice-First Intercom Button -->
+        <button class="voice-intercom-btn" id="btn-global-voice" title="Push-to-Talk Voice Intercom (EN / HI / MR)">
+          <span class="voice-mic-icon">🎙️</span>
+          <span class="voice-btn-text">VOICE INTERCOM</span>
+          <span class="voice-pulse-ring"></span>
+        </button>
+
         <!-- Top-Right Stakeholder Profile Area -->
         <div class="top-profile-container" id="top-profile-container">
           <button class="top-profile-badge" id="top-profile-badge" aria-label="Stakeholder Profile & Switcher">
@@ -150,6 +157,54 @@
         <span>v2.4.0-BRIDGE</span>
       </div>
     </footer>
+
+    <!-- Floating Voice-First HUD Modal (Global Push-to-Talk) -->
+    <div class="voice-hud-overlay" id="voice-hud-overlay">
+      <div class="voice-hud-card bezel-panel">
+        <div class="voice-hud-header">
+          <span class="beacon-pulse" style="background: var(--phosphor-green);"></span>
+          <span class="font-data text-brass" style="font-weight: 700; font-size: 0.75rem;">
+            TACTICAL VOICE INTERCOM // CH 16
+          </span>
+          <button class="voice-hud-close-btn" id="btn-close-voice-hud">✕</button>
+        </div>
+
+        <div class="voice-wave-container">
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+          <div class="voice-wave-bar"></div>
+        </div>
+
+        <div class="voice-hud-status font-data" id="voice-hud-status">
+          LISTENING... SPEAK MARITIME QUERY OR COMMAND
+        </div>
+
+        <div class="voice-transcript-box" id="voice-hud-transcript">
+          "Speak now (e.g. 'Assess cyclone risk near Mumbai' or 'Show map')..."
+        </div>
+
+        <div class="voice-hud-footer">
+          <div class="font-data text-muted" style="font-size: 0.68rem;" id="voice-hud-lang">
+            LANG: <strong class="text-amber">ENGLISH / HINDI / MARATHI</strong>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-tactical btn-tactical-sm text-red" id="btn-cancel-voice">
+              CANCEL
+            </button>
+            <button class="btn-tactical btn-tactical-sm btn-tactical-amber" id="btn-transmit-voice">
+              📡 TRANSMIT NOW
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Master Application Script -->

@@ -1,10 +1,11 @@
 // MARIX Marine Bridge Console — Generative Canvas (/#chat)
 // Dual-mode: connects to Spring Boot POST /api/chat (SSE) or falls back to simulated engine.
-// Personalizes suggested questions, role context, and terminology for the active stakeholder.
+// Voice-First integration: Push-to-Talk Speech Recognition & Tactical Audio Voice Readout.
 
 import { GenerativeUIRenderer, GenerativeAgentBridge } from '../services/generativeUI.js';
 import { CanvasRenderer, SpringBootBridge } from '../services/renderer.js';
 import { authService } from '../services/authService.js';
+import { voiceService } from '../services/voiceService.js';
 
 export function renderChatView(container, { i18n, soundEngine }) {
   const bridge = new GenerativeAgentBridge();
@@ -32,7 +33,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
             ${user.name} // ${user.roleTitle}
           </div>
           <p class="font-data" style="font-size: 0.80rem; color: var(--muted); max-width: 560px; text-align: center; line-height: 1.6; margin-bottom: 20px;">
-            Transmit an operational query. MARIX streams its chain-of-thought and then 
+            Transmit an operational query via <strong style="color: var(--phosphor-green);">Voice</strong> or text. MARIX streams its chain-of-thought and then 
             <strong style="color: var(--brass);">dynamically generates the exact UI components</strong> tailored to ${user.roleTitle} operations.
           </p>
           <div class="font-data text-brass" style="font-size: 0.68rem; letter-spacing: 0.1em; margin-bottom: 12px;">
@@ -61,7 +62,7 @@ export function renderChatView(container, { i18n, soundEngine }) {
         <div class="intercom-meta-row">
           <div class="intercom-chan-select">
             <span>📻</span>
-            <span class="text-brass font-data" style="font-weight: 700;">VHF-CH 16 / ${user.roleTitle.toUpperCase()} REASONING BRIDGE</span>
+            <span class="text-brass font-data" style="font-weight: 700;">VHF-CH 16 / ${user.roleTitle.toUpperCase()} VOICE &amp; REASONING BRIDGE</span>
           </div>
           <div class="intercom-tx-indicator" id="tx-status">
             <span class="intercom-tx-dot"></span>
@@ -72,12 +73,19 @@ export function renderChatView(container, { i18n, soundEngine }) {
           </button>
         </div>
         <form class="intercom-form" id="chat-form">
+          <!-- Voice Push-to-Talk Microphone Button -->
+          <button type="button" class="btn-tactical btn-voice-ptt" id="btn-chat-mic" title="Push-to-Talk Voice Input (EN / HI / MR)">
+            <span class="mic-icon">🎙️</span>
+            <span class="mic-pulse"></span>
+          </button>
+
           <textarea
             id="chat-input"
             class="intercom-textarea"
-            placeholder="${_escape(user.terminology?.intercomPrompt || 'Transmit operational query...')}"
+            placeholder="${_escape(user.terminology?.intercomPrompt || 'Transmit operational query or click 🎙️ to speak...')}"
             rows="1"
           ></textarea>
+
           <button type="submit" class="btn-tactical btn-tactical-amber" style="height: 44px; padding: 0 18px; white-space: nowrap;">
             📡 TRANSMIT
           </button>
@@ -91,11 +99,11 @@ export function renderChatView(container, { i18n, soundEngine }) {
   const thread = container.querySelector('#messages-thread');
   const canvasEl = container.querySelector('#canvas');
 
-  // Attach the backend CanvasRenderer to the #canvas div
   const canvasRenderer = new CanvasRenderer(canvasEl);
   const form = container.querySelector('#chat-form');
   const input = container.querySelector('#chat-input');
   const txStatusText = container.querySelector('#tx-status-text');
+  const micBtn = container.querySelector('#btn-chat-mic');
 
   // Preset buttons
   container.querySelectorAll('.preset-chip-btn').forEach(btn => {
@@ -124,12 +132,59 @@ export function renderChatView(container, { i18n, soundEngine }) {
   container.querySelector('#btn-clear-log').addEventListener('click', () => {
     thread.innerHTML = '';
     emptyState.style.display = 'flex';
+    voiceService.stopSpeaking();
     if (soundEngine) soundEngine.playMechanicalClick();
   });
+
+  // Voice Push-to-Talk Button Wiring
+  if (micBtn) {
+    micBtn.addEventListener('click', () => {
+      if (voiceService.isRecording) {
+        voiceService.stopListening();
+        micBtn.classList.remove('recording');
+        if (soundEngine) soundEngine.playMechanicalClick();
+      } else {
+        if (soundEngine) soundEngine.playTacticalChirp();
+        micBtn.classList.add('recording');
+        input.placeholder = '🎙️ Listening... Speak your operational query now...';
+
+        voiceService.startListening({
+          onInterim: (text) => {
+            input.value = text;
+          },
+          onFinal: (text) => {
+            input.value = text;
+            micBtn.classList.remove('recording');
+            input.placeholder = user.terminology?.intercomPrompt || 'Transmit operational query...';
+            // Auto submit if complete sentence recognized
+            if (text.trim().length > 3) {
+              submit(text);
+              input.value = '';
+            }
+          },
+          onEnd: () => {
+            micBtn.classList.remove('recording');
+            input.placeholder = user.terminology?.intercomPrompt || 'Transmit operational query...';
+          },
+          onError: (err) => {
+            micBtn.classList.remove('recording');
+            input.placeholder = user.terminology?.intercomPrompt || 'Transmit operational query...';
+          }
+        });
+      }
+    });
+  }
 
   async function submit(promptText) {
     emptyState.style.display = 'none';
     if (soundEngine) soundEngine.playTransmissionSound();
+
+    // Check for hands-free voice navigation command
+    const navCmd = voiceService.checkVoiceNavigationCommand(promptText);
+    if (navCmd) {
+      voiceService.speak(navCmd);
+      return;
+    }
 
     // ── BACKEND PATH (primary) ─────────────────────────────
     sbBridge.streamTo(promptText, canvasRenderer).catch(function(e) {
@@ -157,12 +212,17 @@ export function renderChatView(container, { i18n, soundEngine }) {
     agentBubble.className = 'chat-msg agent';
     agentBubble.id = msgId;
     agentBubble.innerHTML = `
-      <div class="msg-header">
-        <span class="beacon-pulse" style="width: 5px; height: 5px;"></span>
-        <span class="font-data text-brass" style="font-weight: 700; font-size: 0.72rem;">MARIX REASONING AGENT</span>
-        <span class="text-muted">•</span>
-        <span class="font-data text-muted" style="font-size: 0.68rem;">${timestamp}</span>
-        <span class="genui-status-badge panel-badge badge-amber" style="margin-left: 6px;">⚙ SYNTHESIZING...</span>
+      <div class="msg-header" style="justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="beacon-pulse" style="width: 5px; height: 5px;"></span>
+          <span class="font-data text-brass" style="font-weight: 700; font-size: 0.72rem;">MARIX REASONING AGENT</span>
+          <span class="text-muted">•</span>
+          <span class="font-data text-muted" style="font-size: 0.68rem;">${timestamp}</span>
+          <span class="genui-status-badge panel-badge badge-amber" style="margin-left: 6px;">⚙ SYNTHESIZING...</span>
+        </div>
+        <button class="btn-tactical btn-tactical-sm btn-speak-msg" data-msg-id="${msgId}" title="Read Out Audio Synthesis" style="padding: 2px 7px; font-size: 0.65rem;">
+          🔊 READ OUT
+        </button>
       </div>
       <div class="msg-content-agent bezel-panel">
 
@@ -214,6 +274,26 @@ export function renderChatView(container, { i18n, soundEngine }) {
     txStatusText.style.color = 'var(--phosphor-green)';
     scrollObserver.disconnect();
     streamBox.scrollTop = streamBox.scrollHeight;
+
+    // Wire up TTS Readout Button
+    const speakBtn = agentBubble.querySelector('.btn-speak-msg');
+    const proseEl = agentBubble.querySelector('.genui-prose');
+    if (speakBtn && proseEl) {
+      speakBtn.addEventListener('click', () => {
+        if (voiceService.isSpeaking()) {
+          voiceService.stopSpeaking();
+          speakBtn.innerHTML = '🔊 READ OUT';
+        } else {
+          speakBtn.innerHTML = '⏹ STOP AUDIO';
+          if (soundEngine) soundEngine.playTacticalBeep();
+          voiceService.speak(proseEl.textContent, {
+            onEnd: () => {
+              speakBtn.innerHTML = '🔊 READ OUT';
+            }
+          });
+        }
+      });
+    }
 
     if (soundEngine) soundEngine.playTacticalChirp();
   }

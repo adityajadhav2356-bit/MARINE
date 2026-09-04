@@ -1,10 +1,11 @@
 // MARIX Marine Bridge Console — Master Bootstrapper
 // Manages global state, Web Audio API sound synthesis, i18n localization,
-// dynamic stakeholder state, and route orchestration
+// dynamic stakeholder state, Voice-First subsystem, and route orchestration
 
 import { I18N } from './data/mockData.js';
 import { STAKEHOLDERS } from './data/stakeholders.js';
 import { authService } from './services/authService.js';
+import { voiceService } from './services/voiceService.js';
 import { Router } from './router.js';
 import { renderLandingView } from './views/landing.js';
 import { renderLoginView } from './views/login.js';
@@ -125,11 +126,13 @@ class OrcaBridgeApp {
     this.soundEngine = new BridgeSoundEngine();
     this.router = null;
     this.authService = authService;
+    this.voiceService = voiceService;
   }
 
   init() {
     this.bindStaticUI();
     this.initProfileArea();
+    this.initVoiceIntercom();
     this.startLiveClocks();
 
     const routes = {
@@ -147,7 +150,8 @@ class OrcaBridgeApp {
       i18n: I18N[this.currentLang] || I18N.en,
       soundEngine: this.soundEngine,
       currentLang: this.currentLang,
-      authService: this.authService
+      authService: this.authService,
+      voiceService: this.voiceService
     });
 
     this.router.init();
@@ -212,7 +216,6 @@ class OrcaBridgeApp {
         dropdown.classList.toggle('open');
       });
 
-      // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#top-profile-container')) {
           dropdown.classList.remove('open');
@@ -225,6 +228,100 @@ class OrcaBridgeApp {
         this.soundEngine.playTacticalChirp();
         dropdown.classList.remove('open');
         this.authService.logout();
+      });
+    }
+  }
+
+  initVoiceIntercom() {
+    const voiceBtn = document.getElementById('btn-global-voice');
+    const hudOverlay = document.getElementById('voice-hud-overlay');
+    const closeBtn = document.getElementById('btn-close-voice-hud');
+    const cancelBtn = document.getElementById('btn-cancel-voice');
+    const transmitBtn = document.getElementById('btn-transmit-voice');
+    const transcriptEl = document.getElementById('voice-hud-transcript');
+    const statusEl = document.getElementById('voice-hud-status');
+    const langEl = document.getElementById('voice-hud-lang');
+
+    let currentSpokenText = '';
+
+    const openHUD = () => {
+      if (!hudOverlay) return;
+      hudOverlay.classList.add('open');
+      if (voiceBtn) voiceBtn.classList.add('recording');
+      this.soundEngine.playTacticalChirp();
+
+      const langMap = { en: 'ENGLISH (en-IN)', hi: 'हिन्दी (hi-IN)', mr: 'मराठी (mr-IN)' };
+      if (langEl) langEl.innerHTML = `LANG: <strong class="text-amber">${langMap[this.currentLang] || 'ENGLISH'}</strong>`;
+      if (statusEl) statusEl.textContent = 'LISTENING... SPEAK MARITIME QUERY OR COMMAND';
+      if (transcriptEl) transcriptEl.textContent = '"Speak now (e.g. \'Assess cyclone risk\' or \'Open marine map\')..."';
+
+      currentSpokenText = '';
+
+      this.voiceService.startListening({
+        onInterim: (text) => {
+          currentSpokenText = text;
+          if (transcriptEl) transcriptEl.textContent = `"${text}"`;
+          if (statusEl) statusEl.textContent = 'RECEIVING VHF TRANSMISSION...';
+        },
+        onFinal: (text) => {
+          currentSpokenText = text;
+          if (transcriptEl) transcriptEl.textContent = `"${text}"`;
+          if (statusEl) statusEl.textContent = '✓ TRANSMISSION COMPLETE — CLICK TRANSMIT';
+        },
+        onEnd: () => {
+          if (statusEl) statusEl.textContent = 'TRANSMISSION READY';
+        },
+        onError: (err) => {
+          if (statusEl) statusEl.textContent = `VOICE NOTE: ${err || 'No speech detected'}`;
+        }
+      });
+    };
+
+    const closeHUD = () => {
+      if (!hudOverlay) return;
+      hudOverlay.classList.remove('open');
+      if (voiceBtn) voiceBtn.classList.remove('recording');
+      this.voiceService.stopListening();
+      this.soundEngine.playMechanicalClick();
+    };
+
+    if (voiceBtn) {
+      voiceBtn.addEventListener('click', () => {
+        if (hudOverlay && hudOverlay.classList.contains('open')) {
+          closeHUD();
+        } else {
+          openHUD();
+        }
+      });
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeHUD);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeHUD);
+
+    if (transmitBtn) {
+      transmitBtn.addEventListener('click', () => {
+        const textToSubmit = currentSpokenText.trim();
+        closeHUD();
+
+        if (textToSubmit) {
+          // Check for hands-free voice command
+          const navCmd = this.voiceService.checkVoiceNavigationCommand(textToSubmit);
+          if (navCmd) {
+            this.voiceService.speak(navCmd);
+            return;
+          }
+
+          // Navigate to chat and submit query
+          window.location.hash = '#/chat';
+          setTimeout(() => {
+            const chatInput = document.getElementById('chat-input');
+            const chatForm = document.getElementById('chat-form');
+            if (chatInput && chatForm) {
+              chatInput.value = textToSubmit;
+              chatForm.dispatchEvent(new Event('submit'));
+            }
+          }, 350);
+        }
       });
     }
   }
@@ -266,7 +363,6 @@ class OrcaBridgeApp {
       </div>
     `).join('');
 
-    // Attach 1-click switcher listeners
     listEl.querySelectorAll('.dropdown-role-item').forEach(item => {
       item.addEventListener('click', () => {
         const roleId = item.getAttribute('data-role-id');
@@ -280,6 +376,7 @@ class OrcaBridgeApp {
   setLanguage(lang) {
     this.currentLang = lang;
     localStorage.setItem('orca_lang', lang);
+    this.voiceService.updateLanguage(lang);
 
     document.querySelectorAll('.lang-btn').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
@@ -287,7 +384,6 @@ class OrcaBridgeApp {
 
     this.updateStaticTranslations();
 
-    // Update router options and refresh current view
     if (this.router) {
       this.router.options.i18n = I18N[lang] || I18N.en;
       this.router.options.currentLang = lang;
@@ -299,7 +395,7 @@ class OrcaBridgeApp {
     const dict = I18N[this.currentLang] || I18N.en;
     const titleEl = document.getElementById('brand-title-text');
     const subEl = document.getElementById('brand-sub-text');
-    if (titleEl) titleEl.innerHTML = `ORCA / MARIX <span>CONSOLE</span>`;
+    if (titleEl) titleEl.innerHTML = `MARIX / ORCA <span>CONSOLE</span>`;
     if (subEl) subEl.textContent = dict.system_subtitle;
   }
 
@@ -316,7 +412,6 @@ class OrcaBridgeApp {
     updateClock();
     setInterval(updateClock, 1000);
 
-    // Subtle drift in GPS simulation
     let baseLat = 18.9812;
     let baseLon = 72.8245;
     setInterval(() => {
