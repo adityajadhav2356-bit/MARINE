@@ -1,5 +1,5 @@
 // ORCA Marine Bridge Console — Hash Router
-// Manages zero-build client side routing, view mounting, and navigation state
+// Manages client-side routing and protects application routes with Supabase auth.
 
 import { renderLandingView } from './views/landing.js';
 import { renderLoginView } from './views/login.js';
@@ -16,8 +16,9 @@ export class Router {
     this.options = options;
     this.currentRoute = null;
     this.viewportEl = document.getElementById('app-viewport');
-    
+
     window.addEventListener('hashchange', () => this.handleRoute());
+    window.addEventListener('marix:auth-changed', () => this.handleRoute());
   }
 
   init() {
@@ -27,15 +28,20 @@ export class Router {
   handleRoute() {
     const rawHash = window.location.hash || '#/';
     const cleanRoute = rawHash.replace(/^#/, '') || '/';
-    
-    // Match route handler
+    const authService = this.options.authService;
+    const publicRoutes = ['/login'];
+
+    // All operational console routes require a real Supabase session.
+    // The login page remains public so an unauthenticated user can sign in.
+    if (!publicRoutes.includes(cleanRoute) && authService && !authService.isAuthenticated()) {
+      if (window.location.hash !== '#/login') window.location.hash = '#/login';
+      return;
+    }
+
     const handler = this.routes[cleanRoute] || this.routes['/'] || renderLandingView;
     this.currentRoute = cleanRoute;
-
-    // Update Console Rail Active Highlight
     this.updateActiveRail(cleanRoute);
 
-    // Render View inside viewport
     if (this.viewportEl) {
       this.viewportEl.innerHTML = '';
       handler(this.viewportEl, this.options);
