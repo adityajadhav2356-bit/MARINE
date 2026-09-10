@@ -14,7 +14,6 @@ export class AuthService {
   async initialize() {
     const { data } = await supabase.auth.getSession();
     await this.applySession(data?.session || null, false);
-
     supabase.auth.onAuthStateChange(async (_event, session) => {
       await this.applySession(session, true);
     });
@@ -24,7 +23,6 @@ export class AuthService {
   async applySession(session, broadcast = true) {
     const previousUser = this.currentUser;
     this.session = session;
-
     if (!session?.user) {
       this.currentUser = GUEST_USER;
     } else {
@@ -41,36 +39,25 @@ export class AuthService {
         badge: '● Authenticated User'
       };
     }
-
     if (broadcast) this.broadcastAuthChange(this.currentUser, previousUser);
   }
 
-  getCurrentUser() {
-    return this.currentUser;
-  }
-
-  getAllStakeholders() {
-    return STAKEHOLDERS;
-  }
-
-  getStakeholderById(id) {
-    return STAKEHOLDERS.find(s => s.id === id) || null;
-  }
+  getCurrentUser() { return this.currentUser; }
+  getAllStakeholders() { return STAKEHOLDERS; }
+  getStakeholderById(id) { return STAKEHOLDERS.find(s => s.id === id) || null; }
 
   isAuthenticated() {
-    return !!this.session?.user;
+    // Demo roles remain available for project demonstrations; database writes require a real session.
+    return !!this.session?.user || STAKEHOLDERS.some(s => s.id === this.currentUser?.id);
   }
+
+  hasRealSession() { return !!this.session?.user; }
 
   async login(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     if (!cleanEmail || !cleanPass) return { user: null, error: 'Email and password are required.' };
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: cleanPass
-    });
-
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPass });
     if (error) return { user: null, error: error.message };
     await this.applySession(data.session, true);
     return { user: this.currentUser, error: null };
@@ -79,46 +66,35 @@ export class AuthService {
   async signUp(email, password, fullName = '') {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
+    if (!cleanEmail || cleanPass.length < 6) return { user: null, error: 'Use a valid email and a password of at least 6 characters.' };
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
       password: cleanPass,
-      options: { data: { full_name: fullName.trim() } }
+      options: { data: { full_name: fullName.trim(), role: 'operator' } }
     });
     if (error) return { user: null, error: error.message };
     if (data.session) await this.applySession(data.session, true);
-    return {
-      user: data.user,
-      error: null,
-      needsEmailConfirmation: !data.session
-    };
+    return { user: data.user, error: null, needsEmailConfirmation: !data.session };
   }
 
   async demoLogin(stakeholderId) {
-    // Demo roles remain available for judging without pretending they are real accounts.
-    // Real accounts must use Supabase Auth via login()/signUp().
     const stakeholder = STAKEHOLDERS.find(s => s.id === stakeholderId);
-    if (stakeholder) {
-      this.setDemoUser(stakeholder);
-      return { user: stakeholder, error: null, demo: true };
-    }
-    return { user: null, error: 'Demo stakeholder not found.' };
+    if (!stakeholder) return { user: null, error: 'Demo stakeholder not found.' };
+    this.setDemoUser(stakeholder);
+    return { user: stakeholder, error: null, demo: true };
   }
 
-  async loginAsDefaultDemo() {
-    return this.demoLogin(STAKEHOLDERS[0].id);
-  }
+  async loginAsDefaultDemo() { return this.demoLogin(STAKEHOLDERS[0].id); }
 
   continueWithoutLogin() {
     this.setUser(GUEST_USER);
     return GUEST_USER;
   }
 
-  switchStakeholder(stakeholderId) {
-    return this.demoLogin(stakeholderId);
-  }
+  switchStakeholder(stakeholderId) { return this.demoLogin(stakeholderId); }
 
   async logout() {
-    await supabase.auth.signOut();
+    if (this.session?.user) await supabase.auth.signOut();
     this.currentUser = GUEST_USER;
     this.session = null;
     localStorage.removeItem('marix_auth_user_id');
@@ -133,14 +109,10 @@ export class AuthService {
     return user;
   }
 
-  setUser(user) {
-    return this.setDemoUser(user);
-  }
+  setUser(user) { return this.setDemoUser(user); }
 
   broadcastAuthChange(user, prev = null) {
-    window.dispatchEvent(new CustomEvent('marix:auth-changed', {
-      detail: { user, previousUser: prev }
-    }));
+    window.dispatchEvent(new CustomEvent('marix:auth-changed', { detail: { user, previousUser: prev } }));
   }
 }
 
